@@ -5,6 +5,7 @@ import numpy
 import os
 import glob
 import sys
+import numpy as np
 
 from timeit import default_timer as timer
 from multiprocessing import Process, Pool
@@ -20,6 +21,7 @@ MOVIE_EXTENSIONS = ["*.mp4", "*.mov"]
 def get_frame_data(input_data, frame_number):
     """ Gets the frame with the specified index """
     if isinstance(input_data, list):
+        #print(frame_number)
         return Image.open(input_data[frame_number])
     return input_data.get_data(frame_number)
 
@@ -90,7 +92,7 @@ def get_frame_limit(limit_frames, globsize):
     return total_frames
 
 
-def make_output_dir(output_dir):
+def make_output_dir(output_dir, input_dir):
     """ Creates uniquely-named new folder along specified path
 
     Args:
@@ -108,9 +110,11 @@ def make_output_dir(output_dir):
     slitscan_current = 0
     while os.path.exists(output_path + "tmf" + str(slitscan_current) + "/"):
         slitscan_current += 1
-
-    os.mkdir(output_path + "tmf" + str(slitscan_current) + "/")
-    frame_path = output_path + "tmf" + str(slitscan_current) + "/"
+    #print(input_dir.split('/')[-1])
+    #new_dir = "tmf" + str(slitscan_current)
+    new_dir = input_dir.split('/')[-1]
+    os.mkdir(output_path + new_dir  + "/")
+    frame_path = output_path + new_dir + "/"
     print("Made directory: ", frame_path)
     return frame_path
 
@@ -144,7 +148,7 @@ def progress(count, total, suffix=''):
     sys.stdout.flush()
 
 
-def temporal_median_filter_multi2(input_data, output_dir, limit_frames, output_format, frame_offset=8, simultaneous_frames=8):
+def temporal_median_filter_multi2(input_data, output_dir, limit_frames, output_format, frame_offset=8, simultaneous_frames=8, input_dir=None):
     """
     Uses multiprocessing to efficiently calculate a temporal median filter across set of input images.
 
@@ -168,66 +172,102 @@ def temporal_median_filter_multi2(input_data, output_dir, limit_frames, output_f
         str: path to final frames
     """
     start2 = timer()
-    frame_path = make_output_dir(output_dir)
+    frame_path = make_output_dir(output_dir, input_dir)
     width, height = do_sizing(input_data)
     total_frames = get_frame_limit(limit_frames, get_number_of_frames(input_data))
-
-    median_array = numpy.zeros((frame_offset+simultaneous_frames+frame_offset, height, width, 3),numpy.uint8)
-
-    for frame in range(frame_offset):
-        median_array[frame, :, :, :] = numpy.random.randint(low=0, high=255, size=(height, width, 3))
-
-    # read all the frames into big ol' array
-    for frame_number in range(simultaneous_frames+frame_offset):
-        next_im = get_frame_data(input_data, frame_number)
-        next_array = numpy.array(next_im, numpy.uint8)
-        del next_im
-        median_array[frame_offset+frame_number, :, :, :] = next_array
-        del next_array
-
-    #                |_____________________total frames______________________|
-    # randframes_----0      |--f.o----|s.o|---f.o---|
-    # whole_array = numpy.zeros((total_frames, height, width, 3), numpy.uint8)
-
+    print("Total frames : ", total_frames)
+    allRange = np.arange(total_frames)
+    splitRange = np.array_split(allRange, frame_offset)
     p = Pool(processes=8)
-    current_frame = 0
-    filtered_array = numpy.zeros((simultaneous_frames, height, width, 3), numpy.uint8)
 
-    while current_frame < total_frames:
-        if current_frame == 0:
-            pass
-        else:
-            median_array = numpy.roll(median_array, -simultaneous_frames, axis=0)
-            for x in range(simultaneous_frames):
-                if (current_frame+frame_offset+x) > total_frames:
-                    next_array = numpy.random.randint(low=0, high=255, size=(height, width, 3))
-                else:
-                    next_im = get_frame_data(input_data, frame_offset+current_frame+x)
-                    next_array = numpy.array(next_im, numpy.uint8)
-                median_array[frame_offset+frame_offset+x, :, :, :] = next_array
+    slice_list = []
+    filtered_array = numpy.zeros((len(splitRange), height, width, 3), numpy.uint8)
 
-        slice_list = []
-        for x in range(simultaneous_frames):
-            if (x+current_frame) > total_frames:
-                break
-            else:
-                slice_list.append(median_array[x:(x+frame_offset+frame_offset)])
+    for chunks in splitRange : 
+        median_array = numpy.zeros((len(chunks), height, width, 3), numpy.uint8)
+        ind = 0
+        for frame_number in chunks :
+            next_im = get_frame_data(input_data, frame_number)
+            next_array = numpy.array(next_im, numpy.uint8)
+            del next_im
+            median_array[ind, :, :, :] = next_array
+            #print("Index filled : ", ind)
+            ind += 1   
+            #slice_list.append(next_array)
+        #print("Length", len(slice_list))
+        slice_list.append(median_array)
+        rpesults = median_calc(median_array)
+    results = p.map(median_calc, slice_list) 
+    print("Result calculated")
+    #print("Length", len(results))
+    for frame in range(len(results)):
+        filtered_array[frame, :, :, 0] = results[frame][0]
+        filtered_array[frame, :, :, 1] = results[frame][1]
+        filtered_array[frame, :, :, 2] = results[frame][2]
+        img = Image.fromarray(filtered_array[frame, :, :, :])
+        frame_name = frame_path + str(frame) + "." + output_format
+        img.save(frame_name, format=output_format)
+               
+    exit()
 
-        # calculate medians in our multiprocessing pool
-        results = p.map(median_calc, slice_list)
 
-        for frame in range(len(results)):
-            filtered_array[frame, :, :, 0] = results[frame][0]
-            filtered_array[frame, :, :, 1] = results[frame][1]
-            filtered_array[frame, :, :, 2] = results[frame][2]
-            img = Image.fromarray(filtered_array[frame, :, :, :])
-            frame_name = frame_path + str(current_frame+frame) + "." + output_format
-            img.save(frame_name, format=output_format)
-        progress(current_frame, total_frames)
-        current_frame += simultaneous_frames
+    #median_array = numpy.zeros((frame_offset+simultaneous_frames+frame_offset, height, width, 3),numpy.uint8)
 
-    end2 = timer()
-    print("\nTotal Time was: %.02f sec. %.02f sec per frame." % (end2-start2, ((end2-start2)/total_frames)))
+    #for frame in range(frame_offset):
+    #    median_array[frame, :, :, :] = numpy.random.randint(low=0, high=255, size=(height, width, 3))
+
+    ## read all the frames into big ol' array
+    #for frame_number in range(simultaneous_frames+frame_offset):
+    #    next_im = get_frame_data(input_data, frame_number)
+    #    next_array = numpy.array(next_im, numpy.uint8)
+    #    del next_im
+    #    median_array[frame_offset+frame_number, :, :, :] = next_array
+    #    del next_array
+
+    ##                |_____________________total frames______________________|
+    ## randframes_----0      |--f.o----|s.o|---f.o---|
+    ## whole_array = numpy.zeros((total_frames, height, width, 3), numpy.uint8)
+
+    #p = Pool(processes=8)
+    #current_frame = 0
+    #filtered_array = numpy.zeros((simultaneous_frames, height, width, 3), numpy.uint8)
+
+    #while current_frame < total_frames:
+    #    if current_frame == 0:
+    #        pass
+    #    else:
+    #        median_array = numpy.roll(median_array, -simultaneous_frames, axis=0)
+    #        for x in range(simultaneous_frames):
+    #            if (current_frame+frame_offset+x) > total_frames:
+    #                next_array = numpy.random.randint(low=0, high=255, size=(height, width, 3))
+    #            else:
+    #                print("Next image to get : ", frame_offset + current_frame + x)
+    #                next_im = get_frame_data(input_data, frame_offset+current_frame+x)
+    #                next_array = numpy.array(next_im, numpy.uint8)
+    #            median_array[frame_offset+frame_offset+x, :, :, :] = next_array
+
+    #    slice_list = []
+    #    for x in range(simultaneous_frames):
+    #        if (x+current_frame) > total_frames:
+    #            break
+    #        else:
+    #            slice_list.append(median_array[x:(x+frame_offset+frame_offset)])
+
+    #    # calculate medians in our multiprocessing pool
+    #    results = p.map(median_calc, slice_list)
+
+    #    for frame in range(len(results)):
+    #        filtered_array[frame, :, :, 0] = results[frame][0]
+    #        filtered_array[frame, :, :, 1] = results[frame][1]
+    #        filtered_array[frame, :, :, 2] = results[frame][2]
+    #        img = Image.fromarray(filtered_array[frame, :, :, :])
+    #        frame_name = frame_path + str(current_frame+frame) + "." + output_format
+    #        img.save(frame_name, format=output_format)
+    #    progress(current_frame, total_frames)
+    #    current_frame += simultaneous_frames
+
+    #end2 = timer()
+    #print("\nTotal Time was: %.02f sec. %.02f sec per frame." % (end2-start2, ((end2-start2)/total_frames)))
     return frame_path
 
 
@@ -278,7 +318,8 @@ if __name__ == '__main__':
         args.frame_limit,
         args.output_format,
         args.frame_offset,
-        args.simultaneous_frames
+        args.simultaneous_frames,
+        args.input_dir
     )
 
     if args.video:
