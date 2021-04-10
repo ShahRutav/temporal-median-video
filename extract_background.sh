@@ -14,8 +14,9 @@ do
     for videos in `ls $class_dir`:
     do
         input_dir=$class_dir"/"$videos
-	    printf "${RED} $input_dir  ${NC}\n"
-        python temporal_median.py -i $input_dir -o $output_dir -offset 8
+	video_out_dir=$output_dir"/"$class"/"$videos
+        printf "${RED} $input_dir  ${NC}\n"
+        python temporal_median.py -i $input_dir -o $video_out_dir -offset 8
     done  
 done
 #python temporal_median.py -i ~/dataset/hmdb51/HMDB_12_VDA/pullup/v_35_pull_ups_pullup_f_nm_np1_fr_goo_0 -o . -offset 8 -simul 1

@@ -105,16 +105,18 @@ def make_output_dir(output_dir, input_dir):
         output_dir += "/"
 
     output_path = output_dir
+    os.makedirs(output_path)
+    frame_path = output_path
 
     # **************************** make a new directory to write new image sequence ************************
-    slitscan_current = 0
-    while os.path.exists(output_path + "tmf" + str(slitscan_current) + "/"):
-        slitscan_current += 1
+    #slitscan_current = 0
+    #while os.path.exists(output_path + "tmf" + str(slitscan_current) + "/"):
+    #    slitscan_current += 1
     #print(input_dir.split('/')[-1])
     #new_dir = "tmf" + str(slitscan_current)
-    new_dir = input_dir.split('/')[-1]
-    os.mkdir(output_path + new_dir  + "/")
-    frame_path = output_path + new_dir + "/"
+    #new_dir = input_dir.split('/')[-1]
+    #os.mkdir(output_path + new_dir  + "/")
+    #frame_path = output_path + new_dir + "/"
     print("Made directory: ", frame_path)
     return frame_path
 
