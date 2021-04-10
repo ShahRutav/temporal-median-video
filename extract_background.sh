@@ -16,7 +16,6 @@ do
         input_dir=$class_dir"/"$videos
 	    printf "${RED} $input_dir  ${NC}\n"
         python temporal_median.py -i $input_dir -o . -offset 8
-        exit
     done  
 done
 #python temporal_median.py -i ~/dataset/hmdb51/HMDB_12_VDA/pullup/v_35_pull_ups_pullup_f_nm_np1_fr_goo_0 -o . -offset 8 -simul 1
