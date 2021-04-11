@@ -198,7 +198,7 @@ def temporal_median_filter_multi2(input_data, output_dir, limit_frames, output_f
             #slice_list.append(next_array)
         #print("Length", len(slice_list))
         slice_list.append(median_array)
-        rpesults = median_calc(median_array)
+        #rpesults = median_calc(median_array)
     results = p.map(median_calc, slice_list) 
     print("Result calculated")
     #print("Length", len(results))
@@ -209,6 +209,10 @@ def temporal_median_filter_multi2(input_data, output_dir, limit_frames, output_f
         img = Image.fromarray(filtered_array[frame, :, :, :])
         frame_name = frame_path + str(frame) + "." + output_format
         img.save(frame_name, format=output_format)
+    del results, filtered_array, median_array
+
+    p.close()
+    p.join()
 
 
 
