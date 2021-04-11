@@ -314,15 +314,23 @@ if __name__ == '__main__':
                         help="Optional: Encode h.264 video of resulting frames. Defaults to False.")
 
     args = parser.parse_args()
-    output_path = temporal_median_filter_multi2(
-        make_a_glob(args.input_dir),
-        args.output_dir,
-        args.frame_limit,
-        args.output_format,
-        args.frame_offset,
-        args.simultaneous_frames,
-        args.input_dir
-    )
+    for class_name in os.listdir(args.input_dir):
+        input_direc = os.path.join(args.input_dir, class_name)
+        print('Working on - ', str(input_direc))
+        video_names = [i for i in os.listdir(input_direc) if i[0] == 'v']
+        output_direc = os.path.join(args.output_dir, class_name)
+        os.makedirs(output_direc)
 
-    if args.video:
-        make_a_video(output_path, args.output_format, "TMF.mp4")
+        for video_name in video_names:
+            output_path = temporal_median_filter_multi2(
+                make_a_glob(os.path.join(input_direc, class_name)),
+                os.path.join(output_direc, class_name),
+                args.frame_limit,
+                args.output_format,
+                args.frame_offset,
+                args.simultaneous_frames,
+                args.input_dir
+            )
+
+            if args.video:
+                make_a_video(output_path, args.output_format, "TMF.mp4")
