@@ -52,6 +52,7 @@ def make_a_glob(root_dir):
     if not root_dir.endswith("/"):
         root_dir += "/"
 
+    root_dir = glob.escape(root_dir)
     input_data = glob.glob(root_dir + "*.tif")
 
     for ext in IMAGE_EXTENSIONS:
@@ -325,6 +326,7 @@ if __name__ == '__main__':
         os.makedirs(output_direc)
 
         for video_name in video_names:
+            #print("Path : ", os.path.join(input_direc, video_name))
             output_path = temporal_median_filter_multi2(
                 make_a_glob(os.path.join(input_direc, video_name)),
                 os.path.join(output_direc, video_name),
