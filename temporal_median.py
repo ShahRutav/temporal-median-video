@@ -323,8 +323,8 @@ if __name__ == '__main__':
 
         for video_name in video_names:
             output_path = temporal_median_filter_multi2(
-                make_a_glob(os.path.join(input_direc, class_name)),
-                os.path.join(output_direc, class_name),
+                make_a_glob(os.path.join(input_direc, video_name)),
+                os.path.join(output_direc, video_name),
                 args.frame_limit,
                 args.output_format,
                 args.frame_offset,
