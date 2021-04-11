@@ -209,8 +209,7 @@ def temporal_median_filter_multi2(input_data, output_dir, limit_frames, output_f
         img = Image.fromarray(filtered_array[frame, :, :, :])
         frame_name = frame_path + str(frame) + "." + output_format
         img.save(frame_name, format=output_format)
-               
-    exit()
+
 
 
     #median_array = numpy.zeros((frame_offset+simultaneous_frames+frame_offset, height, width, 3),numpy.uint8)
@@ -332,5 +331,5 @@ if __name__ == '__main__':
                 args.input_dir
             )
 
-            if args.video:
-                make_a_video(output_path, args.output_format, "TMF.mp4")
+            # if args.video:
+            #     make_a_video(output_path, args.output_format, "TMF.mp4")
